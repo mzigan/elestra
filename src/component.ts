@@ -470,7 +470,8 @@ export function For<T>({
 }: {
     each: () => T[]
     key: (item: T, index: number) => string | number
-    render: (item: T, index: number) => ElementBuilder<any> | Node
+    // 1. ДОБАВЛЯЕМ ComponentInstance ВОЗВРАЩАЕМЫМ ТИПОМ
+    render: (item: T, index: number) => ElementBuilder<any> | Node | ComponentInstance
 }): Node {
     const anchor = document.createComment('For')
 
@@ -482,7 +483,6 @@ export function For<T>({
         const nextKeys = list.map((item, i) => key(item, i))
         const nextSet = new Set(nextKeys)
 
-        // FIX #2: collect keys to remove, don't delete during iteration
         const toRemove: Array<string | number> = []
         for (const [k, entry] of entries) {
             if (!nextSet.has(k)) {
@@ -494,7 +494,6 @@ export function For<T>({
         }
         for (const k of toRemove) entries.delete(k)
 
-        // Insert or reorder
         let cursor: Node = anchor
         for (let i = 0; i < list.length; i++) {
             const item = list[i] as T
@@ -503,16 +502,31 @@ export function For<T>({
 
             if (!entry) {
                 const raw = render(item, i)
-                const node = raw instanceof ElementBuilder ? raw.build() : raw
-                const compInstance = instanceRegistry.get(node)
+                
+                // 2. ОБНОВЛЯЕМ ЛОГИКУ: Обрабатываем ComponentInstance
+                let node: Node
+                let compInstance: ComponentInstance | undefined
+
+                if (raw instanceof ElementBuilder) {
+                    node = raw.build()
+                    compInstance = instanceRegistry.get(node)
+                } else if (raw && typeof raw === 'object' && 'el' in raw && '_mount' in raw) {
+                    // Это ComponentInstance!
+                    compInstance = raw as ComponentInstance
+                    node = compInstance.el
+                } else {
+                    // Это просто Node
+                    node = raw as Node
+                }
+
                 entry = { node, instance: compInstance! }
                 entries.set(k, entry)
-                    ; (cursor as ChildNode).after(entry.node)
+                ;(cursor as ChildNode).after(entry.node)
                 compInstance?._mount()
             } else {
                 const expectedNext = cursor.nextSibling
                 if (entry.node !== expectedNext) {
-                    ; (cursor as ChildNode).after(entry.node)
+                    ;(cursor as ChildNode).after(entry.node)
                 }
             }
 
@@ -520,9 +534,6 @@ export function For<T>({
         }
     }
 
-    // FIX #3: register the effect through the parent context so it's disposed
-    // when the parent component is destroyed. Defer first run to mount so that
-    // anchor is guaranteed to be in a live DOM tree.
     const ctx = getCurrentContext()
     if (ctx) {
         const safeCtx = ctx
@@ -531,8 +542,6 @@ export function For<T>({
             safeCtx.effectCleanups.push(cleanup)
         })
     } else {
-        // Called outside a component (e.g. in tests) — create effect immediately
-        // and rely on caller to manage cleanup.
         effect(runReconcile)
     }
 

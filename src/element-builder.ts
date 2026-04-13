@@ -4,10 +4,20 @@
 // Works with Tailwind v4 classes and CSS custom properties.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { getCurrentContext, type ComponentInstance } from "./component"
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 /** Anything that can be a child of an element */
-export type Child = ElementBuilder<any> | Node | string | number | null | undefined | false
+export type Child =
+    | ElementBuilder<any>
+    | Node
+    | string
+    | number
+    | null
+    | undefined
+    | false
+    | ComponentInstance
 
 /** A reactive getter — e.g. computed(() => count()) */
 export type Getter<T> = () => T
@@ -99,12 +109,42 @@ function isGetter<T>(v: MaybeReactive<T>): v is Getter<T> {
     return typeof v === 'function'
 }
 
+// Тип-защитник (Type Guard) для интерфейса ComponentInstance
+function isComponentInstance(val: unknown): val is ComponentInstance {
+    return typeof val === 'object' && val !== null &&
+        'el' in val && '_mount' in val && '_destroy' in val && '_update' in val
+}
+
 function resolveChild(child: Child): Node {
+    // 1. Проверка билдеров
     if (child instanceof ElementBuilder) return child.build()
+
+    // 2. Проверка компонентов (ДО проверки Node!)
+    // Это критически важно, потому что ComponentInstance.el — это Node, 
+    // и иначе он бы попал в нижний if (child instanceof Node)
+    if (isComponentInstance(child)) {
+        const instance = child
+
+        // Если компонент еще не смонтирован (нет родителя), откладываем его mount
+        if (!instance.el.parentNode) {
+            const ctx = getCurrentContext()
+            if (ctx) {
+                ctx.mountCallbacks.push(() => instance._mount())
+            } else {
+                queueMicrotask(() => instance._mount())
+            }
+        }
+        return instance.el
+    }
+
+    // 3. Проверка обычных нод
     if (child instanceof Node) return child
+
+    // 4. Примитивы и пустота
     if (child === null || child === undefined || child === false) {
         return document.createComment('')
     }
+
     return document.createTextNode(String(child))
 }
 
