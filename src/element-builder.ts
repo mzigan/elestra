@@ -285,6 +285,81 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
         return this
     }
 
+    // ─── Values ──────────────────────────────────────────────────────────
+
+    /** Set an value (static or reactive) */
+    value(val: MaybeReactive<string | number>): this {
+        const apply = (v: string | number) => {
+            if (this._el instanceof HTMLInputElement) {
+                this._el.value = String(v)
+            } else {
+                console.warn('.value() can only be used on input elements')
+            }
+        }
+
+        if (isGetter(val)) {
+            const cleanup = runEffect(() => apply(val()))
+            if (cleanup) this._cleanups.push(cleanup)
+        } else {
+            apply(val)
+        }
+        return this
+    }
+
+    checked(val: MaybeReactive<boolean>): this {
+        const apply = (v: boolean) => {
+            if (this._el instanceof HTMLInputElement) {
+                this._el.checked = v
+            } else {
+                console.warn('.checked() can only be used on input elements')
+            }
+        }
+
+        if (isGetter(val)) {
+            const cleanup = runEffect(() => apply(val()))
+            if (cleanup) this._cleanups.push(cleanup)
+        } else {
+            apply(val)
+        }
+        return this
+    }
+
+    extValue(val: MaybeReactive<string>): this {
+        const apply = (v: string) => {
+            if (this._el instanceof HTMLTextAreaElement) {
+                this._el.value = v
+            } else {
+                console.warn('.textValue() can only be used on textarea elements')
+            }
+        }
+
+        if (isGetter(val)) {
+            const cleanup = runEffect(() => apply(val()))
+            if (cleanup) this._cleanups.push(cleanup)
+        } else {
+            apply(val)
+        }
+        return this
+    }
+
+    selectValue(val: MaybeReactive<string>): this {
+        const apply = (v: string) => {
+            if (this._el instanceof HTMLSelectElement) {
+                this._el.value = v
+            } else {
+                console.warn('.selectValue() can only be used on select elements')
+            }
+        }
+
+        if (isGetter(val)) {
+            const cleanup = runEffect(() => apply(val()))
+            if (cleanup) this._cleanups.push(cleanup)
+        } else {
+            apply(val)
+        }
+        return this
+    }
+
     // ─── Text content ────────────────────────────────────────────────────────
 
     /**
