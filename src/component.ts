@@ -476,7 +476,7 @@ export function For<T>({
 
     type Entry = {
         node: Node
-        instance?: ComponentInstance
+        instance?: ComponentInstance | undefined 
         signal: Signal<T>
     }
 
@@ -484,23 +484,35 @@ export function For<T>({
 
     function runReconcile() {
         const list = each()
-        const newEntries = new Map<string | number, Entry>()
+        
+        const nextKeys = new Set<string | number>()
+        for (let i = 0; i < list.length; i++) {
+            nextKeys.add(key(list[i]!, i))
+        }
 
+        // Безопасное удаление старых элементов
+        const toRemove: Array<string | number> = []
+        for (const [k, entry] of entries) {
+            if (!nextKeys.has(k)) {
+                entry.node.parentNode?.removeChild(entry.node)
+                destroyNode(entry.node)
+                toRemove.push(k)
+            }
+        }
+        for (const k of toRemove) {
+            entries.delete(k)
+        }
+
+        // Обновляем или создаем
         let cursor: Node = anchor
 
         for (let i = 0; i < list.length; i++) {
-            const item = list[i]
-            if (item === undefined) {
-                continue; // Skip this iteration if item is undefined
-            }
+            const item = list[i]!
             const k = key(item, i)
-
             let entry = entries.get(k)
 
             if (!entry) {
-                // 🆕 создаём signal для item
                 const itemSignal = signal(item)
-
                 const raw = render(itemSignal, i)
 
                 let node: Node
@@ -516,34 +528,24 @@ export function For<T>({
                     node = raw as Node
                 }
 
-                entry = { node, instance: compInstance!, signal: itemSignal };
-                (cursor as ChildNode).after(node)
+                entry = { node, instance: compInstance, signal: itemSignal }
+                entries.set(k, entry)
+                
+                ;(cursor as ChildNode).after(node)
                 compInstance?._mount()
             } else {
-                // 🔥 ОБНОВЛЯЕМ ДАННЫЕ (вот чего не было!)
-                if (entry.signal() !== item) {
-                    entry.signal.set(item)
-                }
+                // Обновляем данные
+                entry.signal.set(item)
 
-                const expectedNext = cursor.nextSibling
-                if (entry.node !== expectedNext) {
-                    ; (cursor as ChildNode).after(entry.node)
+                // 🔥 Надежная проверка позиции (совет из ревью, который реально хорош)
+                if (entry.node.parentNode !== anchor.parentNode || 
+                    entry.node.previousSibling !== cursor) {
+                    ;(cursor as ChildNode).after(entry.node)
                 }
             }
 
-            newEntries.set(k, entry)
             cursor = entry.node
         }
-
-        // ❌ удаление старых
-        for (const [k, entry] of entries) {
-            if (!newEntries.has(k)) {
-                entry.node.parentNode?.removeChild(entry.node)
-                destroyNode(entry.node)
-            }
-        }
-
-        entries = newEntries
     }
 
     const ctx = getCurrentContext()
