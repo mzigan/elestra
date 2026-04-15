@@ -430,6 +430,12 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
                 if (next === currentNode) return
 
                 if (currentNode !== anchor) {
+                    // 🔥 FIX: Сначала физически удаляем старый узел из DOM
+                    if (currentNode.parentNode) {
+                        currentNode.parentNode.removeChild(currentNode)
+                    }
+                    
+                    // Потом чистим память (эффекты, onDestroy и т.д.)
                     destroyNode(currentNode)
                 }
 
