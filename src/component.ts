@@ -106,41 +106,17 @@ export function useEffect(fn: () => void): void {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 //
-// Props are plain objects. To make individual prop values reactive inside
-// the component, use `toSignals(props)` — it wraps each key in a signal.
-//
-// IMPORTANT: toSignals creates a one-time snapshot. If you need a child
-// component to react to a changing parent value, pass a Signal directly
-// as a prop rather than a plain value:
+// Props are plain objects. Elestra uses explicit reactivity.
+// 
+// IMPORTANT: If a parent passes a static value, the child receives a frozen snapshot.
+// To make a child component react to parent changes, the parent MUST pass 
+// a Signal directly as a prop:
 //
 //   const count = signal(0)
 //   Child({ count })          // ✅ child reads count() reactively
-//   Child({ count: count() }) // ❌ child gets a frozen number
+//   Child({ count: count() }) // ❌ child gets a frozen number (0)
 
 export type PropsBase = Record<string, unknown>
-
-/**
- * Convert a plain props object into a record of signals (snapshot).
- * Use when you need to read props reactively inside computed/effect,
- * but only when the parent won't change those values after mount.
- * For truly reactive props, pass Signal values directly.
- *
- * @example
- * const MyComp = defineComponent((rawProps: { label: string }) => {
- *   const props = toSignals(rawProps)
- *   const upper = computed(() => props.label().toUpperCase())
- *   return el('span').text(upper).build()
- * })
- */
-export function toSignals<T extends PropsBase>(
-    props: T,
-): { [K in keyof T]: Signal<T[K]> } {
-    const result = {} as { [K in keyof T]: Signal<T[K]> }
-    for (const key of Object.keys(props) as (keyof T)[]) {
-        result[key] = signal(props[key])
-    }
-    return result
-}
 
 // ─── Emits ────────────────────────────────────────────────────────────────────
 
@@ -268,6 +244,7 @@ export function defineComponent<Props extends PropsBase = {}>(
                 ctx.destroyCallbacks.length = 0
                 ctx.updateCallbacks.length = 0
                 ctx.effectCleanups.length = 0
+                ctx.provisions.clear()
             },
 
             _update() {
@@ -476,15 +453,17 @@ export function For<T>({
 
     type Entry = {
         node: Node
-        instance?: ComponentInstance | undefined 
+        instance?: ComponentInstance | undefined
         signal: Signal<T>
     }
 
     let entries = new Map<string | number, Entry>()
 
     function runReconcile() {
+        if (!anchor.parentNode) return
+
         const list = each()
-        
+
         const nextKeys = new Set<string | number>()
         for (let i = 0; i < list.length; i++) {
             nextKeys.add(key(list[i]!, i))
@@ -529,18 +508,17 @@ export function For<T>({
                 }
 
                 entry = { node, instance: compInstance, signal: itemSignal }
-                entries.set(k, entry)
-                
-                ;(cursor as ChildNode).after(node)
+                entries.set(k, entry);
+                (cursor as ChildNode).after(node)
                 compInstance?._mount()
             } else {
                 // Обновляем данные
                 entry.signal.set(item)
 
                 // 🔥 Надежная проверка позиции (совет из ревью, который реально хорош)
-                if (entry.node.parentNode !== anchor.parentNode || 
+                if (entry.node.parentNode !== anchor.parentNode ||
                     entry.node.previousSibling !== cursor) {
-                    ;(cursor as ChildNode).after(entry.node)
+                    ; (cursor as ChildNode).after(entry.node)
                 }
             }
 
@@ -636,6 +614,8 @@ export function Show({
     }
 
     function runEffect() {
+        if (!anchor.parentNode) return
+
         const show = when()
         const raw = show ? render() : fallback?.()
 
