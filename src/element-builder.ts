@@ -52,8 +52,8 @@ export type EventMap = {
 type EffectRunner = (fn: () => void) => () => void   // returns cleanup
 let _effectRunner: EffectRunner | null = null
 
-export function setEffectRunner(runner: EffectRunner): void {
-    if (_effectRunner) return
+export function setEffectRunner(runner: EffectRunner, force = false): void {
+    if (_effectRunner && !force) return
     _effectRunner = runner
 }
 
@@ -116,28 +116,15 @@ function isComponentInstance(val: unknown): val is ComponentInstance {
 }
 
 function resolveChild(child: Child): Node {
-    // 1. Проверка билдеров
+    // 1. Билдеры
     if (child instanceof ElementBuilder) return child.build()
 
-    // 2. Проверка компонентов (ДО проверки Node!)
-    // Это критически важно, потому что ComponentInstance.el — это Node, 
-    // и иначе он бы попал в нижний if (child instanceof Node)
+    // 2. Компоненты (Просто возвращаем корень, НЕ трогаем _mount!)
     if (isComponentInstance(child)) {
-        const instance = child
-
-        // Если компонент еще не смонтирован (нет родителя), откладываем его mount
-        if (!instance.el.parentNode) {
-            const ctx = getCurrentContext()
-            if (ctx) {
-                ctx.mountCallbacks.push(() => instance._mount())
-            } else {
-                queueMicrotask(() => instance._mount())
-            }
-        }
-        return instance.el
+        return child.el
     }
 
-    // 3. Проверка обычных нод
+    // 3. Обычные ноды
     if (child instanceof Node) return child
 
     // 4. Примитивы и пустота
@@ -324,7 +311,7 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
         return this
     }
 
-    extValue(val: MaybeReactive<string>): this {
+    textValue(val: MaybeReactive<string>): this {
         const apply = (v: string) => {
             if (this._el instanceof HTMLTextAreaElement) {
                 this._el.value = v
@@ -397,6 +384,19 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
         for (const child of kids) {
             const node = resolveChild(child)
             this._el.appendChild(node)
+
+            // 🔥 FIX: Управляем жизненным циклом только после вставки в DOM
+            if (isComponentInstance(child)) {
+                const ctx = getCurrentContext()
+                if (ctx) {
+                    // Если мы внутри компонента — откладываем маунт дочернего компонента.
+                    // Он вызовется, когда текущий (родительский) компонент будет смонтирован в DOM.
+                    ctx.mountCallbacks.push(() => child._mount())
+                }
+                // Если ctx нет (вызвали вне defineComponent), мы не знаем, когда узел попадет в DOM.
+                // Поэтому мы НЕ вызываем queueMicrotask, чтобы избежать бага с "плавающим" onMount.
+                // Пользователь должен использовать mountComponent() для корневых компонентов.
+            }
         }
         return this
     }
@@ -417,31 +417,46 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
         this._el.appendChild(anchor)
 
         if (isGetter(value)) {
-            // FIX: start as anchor — no detached comment inserted into DOM
             let currentNode: Node = anchor
 
             const cleanup = runEffect(() => {
-                const next = resolveChild(value())
+                const raw = value()
+
+                // 🔥 FIX: Не превращаем null/false в узел, а оставляем null
+                const next = raw ? resolveChild(raw) : null
+
                 if (next === currentNode) return
 
                 if (currentNode !== anchor) {
                     destroyNode(currentNode)
                 }
 
-                if (currentNode === anchor) {
-                    // First render — insert after anchor
-                    anchor.after(next)
-                } else if (currentNode.parentNode) {
-                    // Subsequent renders — replace in place
-                    currentNode.parentNode.replaceChild(next, currentNode)
-                }
+                if (next) {
+                    if (currentNode === anchor) {
+                        anchor.after(next)
+                    } else if (currentNode.parentNode) {
+                        currentNode.parentNode.replaceChild(next, currentNode)
+                    }
 
-                currentNode = next
+                    // 🔥 FIX: Маунтим компонент, если он был отрендерен реактивно
+                    if (isComponentInstance(raw)) {
+                        const ctx = getCurrentContext()
+                        if (ctx) {
+                            ctx.mountCallbacks.push(() => raw._mount())
+                        }
+                    }
+
+                    currentNode = next
+                } else {
+                    // Если null, просто возвращаемся к anchor (DOM пуст)
+                    currentNode = anchor
+                }
             })
 
             if (cleanup) this._cleanups.push(cleanup)
         } else {
-            anchor.after(resolveChild(value))
+            const node = value ? resolveChild(value) : null
+            if (node) anchor.after(node)
         }
         return this
     }
@@ -571,7 +586,15 @@ export const textarea = () => new ElementBuilder<HTMLTextAreaElement>('textarea'
 export function fragment(...kids: Child[]): DocumentFragment {
     const frag = document.createDocumentFragment()
     for (const child of kids) {
-        frag.appendChild(resolveChild(child))
+        const node = resolveChild(child)
+        frag.appendChild(node)
+
+        if (isComponentInstance(child)) {
+            const ctx = getCurrentContext()
+            if (ctx) {
+                ctx.mountCallbacks.push(() => child._mount())
+            }
+        }
     }
     return frag
 }
