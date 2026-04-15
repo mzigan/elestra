@@ -419,10 +419,12 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
         if (isGetter(value)) {
             let currentNode: Node = anchor
 
+            // 🔥 ФИКС: Захватываем контекст ЗДЕСЬ! 
+            // В этот момент мы 100% внутри setup() родителя, и контекст существует.
+            const parentCtx = getCurrentContext()
+
             const cleanup = runEffect(() => {
                 const raw = value()
-
-                // 🔥 FIX: Не превращаем null/false в узел, а оставляем null
                 const next = raw ? resolveChild(raw) : null
 
                 if (next === currentNode) return
@@ -438,22 +440,20 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
                         currentNode.parentNode.replaceChild(next, currentNode)
                     }
 
-                    // 🔥 FIX: Маунтим компонент, если он был отрендерен реактивно
-                    if (isComponentInstance(raw)) {
-                        const ctx = getCurrentContext()
-                        if (ctx) {
-                            ctx.mountCallbacks.push(() => raw._mount())
-                        }
+                    // 🔥 ФИКС: Используем захваченный parentCtx, 
+                    // а не пытаемся получить его заново из пустого стека!
+                    if (isComponentInstance(raw) && parentCtx) {
+                        parentCtx.mountCallbacks.push(() => raw._mount())
                     }
 
                     currentNode = next
                 } else {
-                    // Если null, просто возвращаемся к anchor (DOM пуст)
                     currentNode = anchor
                 }
             })
 
             if (cleanup) this._cleanups.push(cleanup)
+
         } else {
             const node = value ? resolveChild(value) : null
             if (node) anchor.after(node)
