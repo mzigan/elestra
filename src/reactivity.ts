@@ -12,21 +12,32 @@ let activeEffect: ReactiveEffect | null = null
 const pendingEffects = new Set<ReactiveEffect>()
 let flushScheduled = false
 let batchDepth = 0
+let isFlushing = false
 
 function scheduleFlush(): void {
     if (batchDepth > 0) return
-    if (flushScheduled) return
+    // Если мы УЖЕ внутри цикла flush, не создаем новую микрозадачу, 
+    // а просто позволим текущему циклу дойти до новых эффектов.
+    if (flushScheduled && !isFlushing) return
     flushScheduled = true
     queueMicrotask(flush)
 }
 
 function flush(): void {
     flushScheduled = false
-    // Исправление №3: переименовано, чтобы не затенять экспортируемый batch()
-    const effectsToRun = [...pendingEffects]
-    pendingEffects.clear()
-    for (const effect of effectsToRun) {
-        effect._run()
+    isFlushing = true
+    
+    try {
+        // Запускаем цикл, пока в очереди что-то появляется
+        while (pendingEffects.size > 0) {
+            const effectsToRun = [...pendingEffects]
+            pendingEffects.clear()
+            for (const effect of effectsToRun) {
+                effect._run()
+            }
+        }
+    } finally {
+        isFlushing = false
     }
 }
 
