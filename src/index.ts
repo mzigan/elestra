@@ -75,8 +75,7 @@ export {
   onUpdate,
   useEffect,
 
-  // Props & emits
-  toSignals,
+  // emits
   createEmit,
 
   // DI
