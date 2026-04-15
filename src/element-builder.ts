@@ -443,7 +443,15 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
                     // 🔥 ФИКС: Используем захваченный parentCtx, 
                     // а не пытаемся получить его заново из пустого стека!
                     if (isComponentInstance(raw) && parentCtx) {
-                        parentCtx.mountCallbacks.push(() => raw._mount())
+                        if (anchor.isConnected) {
+                            // Если якорь уже в реальном DOM (значит это реактивное обновление),
+                            // маунтим дочерний компонент немедленно.
+                            raw._mount()
+                        } else {
+                            // Если якорь еще в памяти (начальная сборка),
+                            // откладываем маунт до вставки родителя в DOM.
+                            parentCtx.mountCallbacks.push(() => raw._mount())
+                        }
                     }
 
                     currentNode = next
