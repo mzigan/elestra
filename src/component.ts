@@ -470,40 +470,51 @@ export function For<T>({
 }: {
     each: () => T[]
     key: (item: T, index: number) => string | number
-    // 1. ДОБАВЛЯЕМ ComponentInstance ВОЗВРАЩАЕМЫМ ТИПОМ
-    render: (item: T, index: number) => ElementBuilder<any> | Node | ComponentInstance
+    render: (item: Signal<T>, index: number) => ElementBuilder<any> | Node | ComponentInstance
 }): Node {
     const anchor = document.createComment('For')
 
-    type Entry = { node: Node; instance?: ComponentInstance }
+    type Entry = {
+        node: Node
+        instance?: ComponentInstance | undefined 
+        signal: Signal<T>
+    }
+
     let entries = new Map<string | number, Entry>()
 
     function runReconcile() {
         const list = each()
-        const nextKeys = list.map((item, i) => key(item, i))
-        const nextSet = new Set(nextKeys)
+        
+        const nextKeys = new Set<string | number>()
+        for (let i = 0; i < list.length; i++) {
+            nextKeys.add(key(list[i]!, i))
+        }
 
+        // Безопасное удаление старых элементов
         const toRemove: Array<string | number> = []
         for (const [k, entry] of entries) {
-            if (!nextSet.has(k)) {
-                const node = entry.node
-                node.parentNode?.removeChild(node)
-                destroyNode(node)
+            if (!nextKeys.has(k)) {
+                entry.node.parentNode?.removeChild(entry.node)
+                destroyNode(entry.node)
                 toRemove.push(k)
             }
         }
-        for (const k of toRemove) entries.delete(k)
+        for (const k of toRemove) {
+            entries.delete(k)
+        }
 
+        // Обновляем или создаем
         let cursor: Node = anchor
+
         for (let i = 0; i < list.length; i++) {
-            const item = list[i] as T
-            const k = nextKeys[i] as string | number
+            const item = list[i]!
+            const k = key(item, i)
             let entry = entries.get(k)
 
             if (!entry) {
-                const raw = render(item, i)
-                
-                // 2. ОБНОВЛЯЕМ ЛОГИКУ: Обрабатываем ComponentInstance
+                const itemSignal = signal(item)
+                const raw = render(itemSignal, i)
+
                 let node: Node
                 let compInstance: ComponentInstance | undefined
 
@@ -511,21 +522,24 @@ export function For<T>({
                     node = raw.build()
                     compInstance = instanceRegistry.get(node)
                 } else if (raw && typeof raw === 'object' && 'el' in raw && '_mount' in raw) {
-                    // Это ComponentInstance!
                     compInstance = raw as ComponentInstance
                     node = compInstance.el
                 } else {
-                    // Это просто Node
                     node = raw as Node
                 }
 
-                entry = { node, instance: compInstance! }
+                entry = { node, instance: compInstance, signal: itemSignal }
                 entries.set(k, entry)
-                ;(cursor as ChildNode).after(entry.node)
+                
+                ;(cursor as ChildNode).after(node)
                 compInstance?._mount()
             } else {
-                const expectedNext = cursor.nextSibling
-                if (entry.node !== expectedNext) {
+                // Обновляем данные
+                entry.signal.set(item)
+
+                // 🔥 Надежная проверка позиции (совет из ревью, который реально хорош)
+                if (entry.node.parentNode !== anchor.parentNode || 
+                    entry.node.previousSibling !== cursor) {
                     ;(cursor as ChildNode).after(entry.node)
                 }
             }
@@ -536,10 +550,9 @@ export function For<T>({
 
     const ctx = getCurrentContext()
     if (ctx) {
-        const safeCtx = ctx
-        safeCtx.mountCallbacks.push(() => {
+        ctx.mountCallbacks.push(() => {
             const cleanup = effect(runReconcile)
-            safeCtx.effectCleanups.push(cleanup)
+            ctx.effectCleanups.push(cleanup)
         })
     } else {
         effect(runReconcile)
