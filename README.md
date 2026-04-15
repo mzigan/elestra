@@ -39,6 +39,15 @@ import { createApp } from 'elestra'
 
 ## Core concepts
 
+### Philosophy: Explicit Reactivity
+Elestra does not use Proxies. To make a child component react to parent changes, you **must pass a Signal** directly. If you pass a plain value, the child receives a frozen snapshot.
+
+```ts
+const count = signal(0)
+Child({ count })          // ✅ child reads count() reactively
+Child({ count: count() }) // ❌ child gets a frozen number (0)
+```
+
 ### Signals
 
 ```ts
@@ -100,6 +109,33 @@ const card = div()
   .build()
 
 document.body.appendChild(card)
+```
+
+### State Management (Store pattern)
+No external state library is needed. Combine `signal`, `computed`, and `injectionKey` to create type-safe, isolated stores.
+
+```ts
+import { signal, computed } from 'elestra'
+import { injectionKey } from 'elestra'
+
+export const AUTH_STORE_KEY = injectionKey<ReturnType<typeof createAuthStore>>('auth')
+
+export function createAuthStore() {
+  const user = signal<{ name: string } | null>(null)
+  const isLoggedIn = computed(() => user() !== null)
+
+  function login(name: string) { user.set({ name }) }
+  function logout() { user.set(null) }
+
+  return { user, isLoggedIn, login, logout }
+}
+
+// --- In main.ts ---
+createApp(App).provide(AUTH_STORE_KEY, createAuthStore()).mount('#app')
+
+// --- In component ---
+const store = inject(AUTH_STORE_KEY)
+store.login('Ivan')
 ```
 
 ### Components
@@ -166,7 +202,7 @@ const TodoApp = defineComponent(() => {
         )
       ),
 
-      // List
+      // List with fine-grained updates
       Show({
         when: () => visible().length > 0,
         render: () =>
@@ -174,16 +210,17 @@ const TodoApp = defineComponent(() => {
             For({
               each:   visible,
               key:    todo => todo.id,
-              render: todo =>
+              // render receives a Signal<Todo>, updating it doesn't re-render the list!
+              render: (todoSignal) =>
                 li()
                   .class('flex items-center gap-3 p-3 rounded-lg')
                   .style({ background: 'var(--color-surface)' })
-                  .on('click', () => toggle(todo.id))
+                  .on('click', () => toggle(todoSignal().id))
                   .children(
                     span()
                       .class('flex-1')
-                      .classIf('line-through opacity-50', todo.done)
-                      .text(todo.text)
+                      .classIf('line-through opacity-50', () => todoSignal().done)
+                      .text(() => todoSignal().text)
                   ),
             })
           ),
@@ -276,17 +313,21 @@ router.back()
 ### Element builder
 | | |
 |---|---|
-| `el(tag)` | Generic builder. Also: `div()`, `button()`, `input()`, … |
-| `.class(str)` | Add Tailwind classes. Reactive if getter passed |
+| `el(tag)` | Generic builder. Also: `div()`, `button()`, `input()`, `textarea()`, `select()`, … |
+| `.class(str)` | Add Tailwind classes (diffs them reactively). Reactive if getter passed |
 | `.classIf(cls, bool)` | Toggle class conditionally |
 | `.style(obj)` | Set CSS properties or custom properties (`--color-*`). Reactive values ok |
 | `.cssVar(name, val)` | Shorthand for single `--property` |
 | `.attr(name, val)` | Set/remove attribute. Reactive |
 | `.aria(name, val)` | Set `aria-*` attribute |
 | `.data(obj)` | Set `data-*` attributes |
+| `.value(val)` | Set input value (DOM property, not attribute). Reactive |
+| `.checked(val)` | Set input checkbox state (DOM property). Reactive |
+| `.textValue(val)` | Set textarea value (DOM property). Reactive |
+| `.selectValue(val)` | Set select value (DOM property). Reactive |
 | `.text(val)` | Set text content. Reactive |
 | `.children(...kids)` | Append static children |
-| `.child(val)` | Append reactive child slot (swaps on change) |
+| `.child(val)` | Append reactive child slot (swaps component/DOM on change) |
 | `.on(event, handler)` | Add event listener (auto-removed on destroy) |
 | `.once(event, handler)` | One-time listener |
 | `.ref(fn)` | Receive the raw element during build |
@@ -303,9 +344,8 @@ router.back()
 | `onDestroy(fn)` | Before removal |
 | `onUpdate(fn)` | When props change |
 | `useEffect(fn)` | Scoped reactive effect — auto-disposed on destroy |
-| `toSignals(props)` | Convert props object to signals record |
 | `createEmit(handlers)` | Typed emit function |
-| `For({ each, key, render })` | Reactive list with key reconciliation |
+| `For({ each, key, render })` | Reactive list. `render` receives `Signal<T>` for fine-grained updates |
 | `Show({ when, render, fallback })` | Conditional rendering |
 | `inject(key, fallback?)` | DI: read provided value |
 | `provideLocal(key, value)` | DI: provide from within a component |
