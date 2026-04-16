@@ -528,12 +528,25 @@ export function For<T>({
 
     const ctx = getCurrentContext()
     if (ctx) {
+        // Компонентный режим: откладываем до _mount()
         ctx.mountCallbacks.push(() => {
             const cleanup = effect(runReconcile)
             ctx.effectCleanups.push(cleanup)
         })
     } else {
-        effect(runReconcile)
+        // 🆕 VANILLA MODE: ждем один тик, чтобы разработчик успел вставить узел в DOM
+        let cleanupFn: (() => void) | undefined
+
+        queueMicrotask(() => {
+            // Если разработчик забыл вставить в DOM, ничего не делаем
+            if (!anchor.parentNode) return
+
+            cleanupFn = effect(runReconcile)
+        })
+
+        // Привязываем очистку эффекта к самому узлу.
+        // Если узел удалят через destroyNode(), эффект умрет сам.
+        registerDestroyHook(anchor, () => cleanupFn?.())
     }
 
     return anchor
@@ -628,16 +641,27 @@ export function Show({
         swap(node, instance)
     }
 
-    // FIX #3: register through parent context for proper cleanup
     const ctx = getCurrentContext()
     if (ctx) {
-        const safeCtx = ctx
-        safeCtx.mountCallbacks.push(() => {
+        // Компонентный режим: откладываем до _mount()
+        ctx.mountCallbacks.push(() => {
             const cleanup = effect(runEffect)
-            safeCtx.effectCleanups.push(cleanup)
+            ctx.effectCleanups.push(cleanup)
         })
     } else {
-        effect(runEffect)
+        // 🆕 VANILLA MODE: ждем один тик, чтобы разработчик успел вставить узел в DOM
+        let cleanupFn: (() => void) | undefined
+
+        queueMicrotask(() => {
+            // Если разработчик забыл вставить в DOM, ничего не делаем
+            if (!anchor.parentNode) return
+
+            cleanupFn = effect(runEffect)
+        })
+
+        // Привязываем очистку эффекта к самому узлу.
+        // Если узел удалят через destroyNode(), эффект умрет сам.
+        registerDestroyHook(anchor, () => cleanupFn?.())
     }
 
     // Return only the anchor — no fragment, no detach issues
