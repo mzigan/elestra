@@ -23,6 +23,7 @@ export {
   el,
   fragment,
   mount,
+  adopt,
   destroyNode,
   setEffectRunner,
 
