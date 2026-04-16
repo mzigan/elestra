@@ -48,6 +48,36 @@ Child({ count })          // ✅ child reads count() reactively
 Child({ count: count() }) // ❌ child gets a frozen number (0)
 ```
 
+### Philosophy: Two Usage Modes
+Elestra doesn't force you to rewrite your entire app. It scales down seamlessly to "Augmented Vanilla" mode. You can use its reactive primitives to enhance plain HTML without defineComponent.
+
+```ts
+import { signal } from 'elestra'
+import { div, button, For } from 'elestra'
+
+const count = signal(0)
+const items = signal(['Apple', 'Banana'])
+
+// No defineComponent, no build step, no context.
+// Just reactive DOM building attached to a native element.
+const app = div().children(
+    button()
+        .text(() => `Clicked ${count()} times`)
+        .on('click', () => count.update(c => c + 1)),
+        
+    ul().children(
+        For({
+            each: () => items(),
+            key: item => item,
+            render: (item) => li().text(item)
+        })
+    )
+).build()
+
+document.getElementById('app')?.appendChild(app)
+```
+Note: In "Vanilla mode", lifecycle hooks (onMount, onDestroy) are not available. Use this for simple widgets, enhancing server-rendered HTML, or prototyping. For scalable applications, use defineComponent.
+
 ### Signals
 
 ```ts
