@@ -460,7 +460,7 @@ export function For<T>({
     let entries = new Map<string | number, Entry>()
 
     function runReconcile() {
-        if (!anchor.parentNode) return
+        if (!anchor.isConnected) return
 
         const list = each()
 
@@ -627,7 +627,7 @@ export function Show({
     }
 
     function runEffect() {
-        if (!anchor.parentNode) return
+        if (!anchor.isConnected) return
 
         const show = when()
         const raw = show ? render() : fallback?.()
