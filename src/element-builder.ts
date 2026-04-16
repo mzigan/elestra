@@ -145,6 +145,17 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
         this._el = document.createElement(tag) as T
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // 🆕 ADOPT: Создает билдер из СУЩЕСТВУЮЩЕГО DOM-узла
+    // ─────────────────────────────────────────────────────────────────────
+    static adopt<T extends HTMLElement>(node: T): ElementBuilder<T> {
+        // Создаем "пустышку" билдера (dummy tag не важен, он перезапишется)
+        const instance = new ElementBuilder<T>('div') as any
+        // Подменяем его внутренний узел на наш существующий
+        instance._el = node
+        return instance
+    }    
+
     // ─── Classes (Tailwind v4 utilities) ────────────────────────────────────
 
     /** Add static or reactive Tailwind classes */
