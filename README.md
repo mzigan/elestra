@@ -76,7 +76,29 @@ const app = div().children(
 
 document.getElementById('app')?.appendChild(app)
 ```
-Note: In "Vanilla mode", lifecycle hooks (onMount, onDestroy) are not available. Use this for simple widgets, enhancing server-rendered HTML, or prototyping. For scalable applications, use defineComponent.
+_Note: In "Vanilla mode", lifecycle hooks (onMount, onDestroy) are not available. Use this for simple widgets, enhancing server-rendered HTML, or prototyping. For scalable applications, use defineComponent._
+
+### Enhancing existing DOM (adopt)
+Elestra doesn't require you to render the whole page. You can enhance existing server-rendered or static HTML elements using adopt(). It wraps a native DOM node into an ElementBuilder, giving you access to all reactive methods.
+
+```ts
+import { signal } from 'elestra'
+import { adopt } from 'elestra'
+
+const query = signal('')
+
+// Take control of an existing input without re-rendering it
+adopt<HTMLInputElement>('#search-input')
+  .on('input', e => query.set((e.target as HTMLInputElement).value))
+  .class('border p-2 rounded')
+  .value(() => query()) // Reactive two-way binding!
+
+// Add reactive states to native buttons
+adopt('#submit-btn')
+  .on('click', () => console.log('Searching:', query()))
+  .attr('disabled', () => query() === '') // Button disables when input is empty
+```
+_Note: adopt() can take either a CSS selector string or a direct DOM node reference. It requires no defineComponent or lifecycle hooks._
 
 ### Signals
 
@@ -365,6 +387,7 @@ router.back()
 | `.build()` | Returns the DOM element |
 | `fragment(...kids)` | DocumentFragment, no wrapper |
 | `mount(target, el)` | Insert into DOM, returns unmount fn |
+| `adopt<T>(node)` | Wrap an existing DOM node into an ElementBuilder (for SSR/vanilla enhancement) |
 
 ### Component
 | | |
