@@ -1,28 +1,32 @@
 @import "tailwindcss";
 @import "@elestra/ui/styles/theme.css";
+@source "../../packages/ui/src";
 
+/* 2. ПОЛЬЗОВАТЕЛЬ ПЕРЕОПРЕДЕЛЯЕТ только нужные цвета */
+:root {
+  --primary: hsl(24 95% 53%);            /* Оранжевый */
+  --primary-foreground: hsl(0 0% 100%);  /* Белый текст на оранжевом */
+  
+  --destructive: hsl(24 95% 53%);         /* Изменил красный, если захотел */
+}
+
+/* 3. Мост оставляем без изменений! */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

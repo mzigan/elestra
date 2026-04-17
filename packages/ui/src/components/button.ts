@@ -49,7 +49,12 @@ export const Button = defineComponent<ButtonProps>((props) => {
       const s = resolve(props.size, 'default')
       const userClass = resolve(props.class, '')
       
-      return `${baseClasses} ${variants[v]} ${sizes[s]} ${userClass}`.trim()
+      const classes = `${baseClasses} ${variants[v]} ${sizes[s]} ${userClass}`.trim()
+      
+      console.log('🔵 Button classes:', classes) // ← добавить
+      console.log('🔵 Variant:', v) // ← добавить
+
+      return classes
     })
     .child(() => props.default?.())
 })
