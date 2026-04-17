@@ -9,11 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "elestra": "workspace:*",
     "@elestra/primitives": "workspace:*",
-    "@elestra/ui": "workspace:*"
-  },  
+    "@elestra/ui": "workspace:*",
+    "elestra": "workspace:*"
+  },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "tailwindcss": "^4.2.2",
     "typescript": "~6.0.2",
     "vite": "^8.0.4"
   }

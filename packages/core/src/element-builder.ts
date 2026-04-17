@@ -105,7 +105,7 @@ export function destroyNode(node: Node): void {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function isGetter<T>(v: MaybeReactive<T>): v is Getter<T> {
+export function isGetter<T>(v: MaybeReactive<T>): v is Getter<T> {
     return typeof v === 'function'
 }
 

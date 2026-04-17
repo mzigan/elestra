@@ -36,6 +36,7 @@ export {
   section, article,
   header, footer, nav, main,
   label, select, option, textarea,
+  isGetter,
 
   // Types
   type Child,
