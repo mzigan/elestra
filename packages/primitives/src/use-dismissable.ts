@@ -1,6 +1,6 @@
 // primitives/shared/useDismissable.ts
-import { useEffect } from '../component'
-import type { Signal } from '../reactivity'
+import { useEffect } from 'elestra'
+import type { Signal } from 'elestra'
 
 interface UseDismissableOptions {
   enabled: Signal<boolean>

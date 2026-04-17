@@ -1,8 +1,7 @@
-// ui/UIDialog.ts
-import { Dialog } from '../primitives/dialog/Dialog'
-import { div } from '../element-builder'
-import { DialogTrigger } from '../primitives/dialog/DialogTrigger'
-import { DialogPanel } from '../primitives/dialog/DialogPanel'
+import { div } from 'elestra'
+import { Dialog } from '@elestra/primitives'
+import { DialogTrigger } from '@elestra/primitives'
+import { DialogPanel } from '@elestra/primitives'
 
 export const UIDialog = () => Dialog({
   default: () => div().children(

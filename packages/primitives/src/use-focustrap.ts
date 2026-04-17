@@ -1,6 +1,6 @@
 // primitives/shared/useFocusTrap.ts
-import { useEffect } from '../component'
-import type { Signal } from '../reactivity'
+import { useEffect } from 'elestra'
+import type { Signal } from 'elestra'
 
 export function useFocusTrap(
   getElement: () => HTMLElement | null, 

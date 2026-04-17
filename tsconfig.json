@@ -23,6 +23,6 @@
 
     "skipLibCheck": true
   },
-  "include": ["src"],
+  "include": ["src", "packages/ui/src/components/collapsible.ts", "packages/ui/src/components/UIDialog.ts", "packages/primitives/src/dialog", "packages/primitives/src/aria.ts", "packages/primitives/src/createDisclosure.ts", "packages/primitives/src/types.ts", "packages/primitives/src/useDismissable.ts", "packages/primitives/src/useFocustrap.ts"],
   "exclude": ["node_modules", "dist"]
 }

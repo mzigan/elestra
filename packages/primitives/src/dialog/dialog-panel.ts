@@ -1,8 +1,7 @@
-// primitives/dialog/DialogPanel.ts
-import { defineComponent, inject } from '../../component'
-import { div, type Child } from '../../element-builder'
-import { signal, type Signal } from '../../reactivity'
-import { DIALOG_API_KEY, DIALOG_PANEL_KEY, type DialogAPI } from './Dialog'
+import { defineComponent, inject } from 'elestra'
+import { div, type Child } from 'elestra'
+import { type Signal } from 'elestra'
+import { DIALOG_API_KEY, DIALOG_PANEL_KEY, type DialogAPI } from './dialog'
 
 type DialogPanelProps = {
   default?: () => Child

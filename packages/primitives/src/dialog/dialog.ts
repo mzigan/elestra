@@ -1,9 +1,9 @@
-import { defineComponent, injectionKey, provideLocal } from "../../component"
-import { div, type Child } from "../../element-builder"
-import { signal, type Signal } from "../../reactivity"
-import { createDisclosure } from "../createDisclosure"
-import { useDismissable } from "../useDismissable"
-import { useFocusTrap } from "../useFocustrap"
+import { defineComponent, injectionKey, provideLocal } from "elestra"
+import { div, type Child } from "elestra"
+import { signal, type Signal } from "elestra"
+import { createDisclosure } from "../create-disclosure"
+import { useDismissable } from "../use-dismissable"
+import { useFocusTrap } from "../use-focustrap"
 
 export type DialogAPI = { open: Signal<boolean>; show: () => void; close: () => void }
 export const DIALOG_API_KEY = injectionKey<DialogAPI>('dialog-api')

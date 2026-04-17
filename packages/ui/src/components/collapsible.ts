@@ -1,9 +1,5 @@
-// // ui/collapsible.ts
-// import { div, button } from '../element-builder';
-// import { createDisclosure } from '../primitives/createDisclosure';
-// import { useDismissable } from '../primitives/useDismissable';
-// import { ariaExpanded } from '../primitives/aria';
-// import { defineComponent } from '../component';
+// import { createDisclosure, useDismissable } from "@elestra/primitives";
+// import { defineComponent, div } from "elestra";
 
 // export const Collapsible = defineComponent((props: {
 //   defaultOpen?: boolean,

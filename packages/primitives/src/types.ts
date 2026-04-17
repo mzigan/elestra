@@ -1,4 +1,4 @@
-import type { Child } from '../element-builder'
+import type { Child } from 'elestra'
 
 export type SlottedProps = {
   default?: () => Child

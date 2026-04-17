@@ -1,5 +1,4 @@
-// primitives/shared/createDisclosure.ts
-import { signal, type Signal } from '../reactivity'
+import { signal, type Signal } from 'elestra'
 
 export interface DisclosureAPI {
   /** Сигнал состояния. Передаем напрямую в .attr(), .classIf() или useEffect */

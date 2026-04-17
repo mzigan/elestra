@@ -1,7 +1,6 @@
-// primitives/dialog/DialogTrigger.ts
-import { defineComponent, inject } from '../../component'
-import { button, type Child } from '../../element-builder'
-import { DIALOG_API_KEY, type DialogAPI } from './Dialog'
+import { defineComponent, inject } from 'elestra'
+import { button, type Child } from 'elestra'
+import { DIALOG_API_KEY, type DialogAPI } from './dialog'
 
 type DialogTriggerProps = {
   default?: () => Child

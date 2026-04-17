@@ -1,5 +1,5 @@
 // primitives/aria.ts
-import { type Signal } from '../reactivity';
+import { type Signal } from 'elestra';
 
 // Вешаем на триггер
 export function ariaExpanded(builder: any, stateSignal: Signal<boolean>) {
