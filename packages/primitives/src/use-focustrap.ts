@@ -1,4 +1,3 @@
-// primitives/shared/useFocusTrap.ts
 import { useEffect } from 'elestra'
 import type { Signal } from 'elestra'
 

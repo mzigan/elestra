@@ -1,28 +1,88 @@
 import './main.css'
-import { createApp, defineComponent, div, span } from 'elestra'
+import { createApp, defineComponent, div, span, signal } from 'elestra'
 import { Button } from '@elestra/ui'
 
+// 1. Импортируем функцию-конвертер вместе с иконками
+import { Mail, LoaderCircle, Trash2, createElement } from 'lucide'
+
 const App = defineComponent(() => {
+  const isLoading = signal(false)
+
   return div()
-    .class('p-8 flex flex-col gap-4')
-    .children(
-      // 1. Кнопка из библиотеки (использует токены темы)
+    .class('p-8 flex flex-col gap-4 max-w-xs')
+    
+    // 1. Кнопка с иконкой
+    .child(
       Button({
-        default: () => span().text('Кнопка с токеном (destructive)'),
+        default: () => span().text('Отправить'),
+        // 2. Оборачиваем Mail() в createElement()
+        icon: span().class('w-4 h-4').child(createElement(Mail))
+      })
+    )
+
+    // 2. Кнопка-иконка
+    .child(
+      Button({
+        size: 'icon',
+        variant: 'outline',
+        icon: span().class('w-5 h-5').child(createElement(Trash2))
+      })
+    )
+
+    // 3. Реактивный спиннер
+    .child(
+      Button({
         variant: 'destructive',
-      }),
-      // 2. Обычный элемент со стандартным цветом Tailwind
-      div()
-        .class('bg-red-500 text-white p-4 rounded')
-        .text('Обычный красный (bg-red-500)'),
-      // 3. Еще один стандартный цвет
-      div()
-        .class('bg-emerald-400 text-black p-4 rounded')
-        .text('Обычный зеленый (bg-emerald-400)')
+        disabled: () => isLoading(),
+        // Геттер вызывает createElement динамически
+        icon: () => span().class('w-4 h-4').child(
+          createElement(isLoading() ? LoaderCircle : Trash2)
+        ),
+        default: () => span().text(isLoading() ? 'Удаление...' : 'Удалить')
+      })
+    )
+
+    // 4. Кнопка управления
+    .child(
+      Button({
+        variant: 'secondary',
+        onclick: () => isLoading.update(v => !v),
+        default: () => span().text('Переключить состояние')
+      })
     )
 })
 
 createApp(App).mount('#app')
+
+
+// createApp(App).mount('#app')
+
+
+// import './main.css'
+// import { createApp, defineComponent, div, span } from 'elestra'
+// import { Button } from '@elestra/ui'
+
+// const App = defineComponent(() => {
+//   return div()
+//     .class('p-8 flex flex-col gap-4')
+//     .children(
+//       // 1. Кнопка из библиотеки (использует токены темы)
+//       Button({
+//         default: () => span().text('Кнопка с токеном (destructive)'),
+//         variant: 'destructive',
+//       }),
+//       // 2. Обычный элемент со стандартным цветом Tailwind
+//       div()
+//         .class('bg-red-500 text-white p-4 rounded')
+//         .text('Обычный красный (bg-red-500)'),
+//       // 3. Еще один стандартный цвет
+//       div()
+//         .class('bg-emerald-400 text-black p-4 rounded')
+//         .text('Обычный зеленый (bg-emerald-400)')
+//     )
+// })
+
+// createApp(App).mount('#app')
 
 
 // import './main.css'

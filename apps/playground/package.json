@@ -11,7 +11,8 @@
   "dependencies": {
     "@elestra/primitives": "workspace:*",
     "@elestra/ui": "workspace:*",
-    "elestra": "workspace:*"
+    "elestra": "workspace:*",
+    "lucide": "^1.8.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",

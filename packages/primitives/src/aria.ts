@@ -1,4 +1,3 @@
-// primitives/aria.ts
 import { type Signal } from 'elestra';
 
 // Вешаем на триггер

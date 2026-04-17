@@ -1,4 +1,3 @@
-// primitives/shared/useDismissable.ts
 import { useEffect } from 'elestra'
 import type { Signal } from 'elestra'
 
