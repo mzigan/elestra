@@ -16,19 +16,23 @@ let isFlushing = false
 
 function scheduleFlush(): void {
     if (batchDepth > 0) return
-    // Если мы УЖЕ внутри цикла flush, не создаем новую микрозадачу, 
-    // а просто позволим текущему циклу дойти до новых эффектов.
-    if (flushScheduled && !isFlushing) return
+    // Если мы УЖЕ внутри цикла flush, while(pendingEffects.size > 0) подхватит новые эффекты.
+    // Нет нужды ставить новую микрозадачу в очередь.
+    if (isFlushing) return
+    // Если микрозадача уже стоит в очереди браузера, ничего не делаем.
+    if (flushScheduled) return
+
     flushScheduled = true
     queueMicrotask(flush)
 }
 
 function flush(): void {
+    // Сбрасываем флаг очереди. Если во время выполнения эффектов изменится сигнал,
+    // scheduleFlush увидит flushScheduled = false, но isFlushing = true, и не поставит лишнюю задачу.
     flushScheduled = false
     isFlushing = true
-    
+
     try {
-        // Запускаем цикл, пока в очереди что-то появляется
         while (pendingEffects.size > 0) {
             const effectsToRun = [...pendingEffects]
             pendingEffects.clear()
@@ -46,12 +50,19 @@ function flush(): void {
 class ReactiveEffect {
     private _fn: () => void
     private _onInvalidate: () => void
+    private _onError?: (err: unknown) => void
     private _deps = new Set<Dep>()
     private _active = true
 
-    constructor(fn: () => void, onInvalidate?: () => void, immediate = false) {
+    constructor(
+        fn: () => void,
+        onInvalidate?: () => void,
+        immediate = false,
+        onError?: (err: unknown) => void // 🆕
+    ) {
         this._fn = fn
         this._onInvalidate = onInvalidate || (() => { })
+        this._onError = onError // 🆕
         if (immediate) this._run()
     }
 
@@ -68,16 +79,26 @@ class ReactiveEffect {
     _run(): void {
         if (!this._active) return
 
-        // Защита от двойного выполнения при синхронном pull-чтении computed:
-        // Если computed вычислился вручную до микротаски, удаляем его из очереди.
         pendingEffects.delete(this)
-
         this._cleanup()
 
         const prevEffect = activeEffect
         activeEffect = this
         try {
             this._fn()
+        } catch (err) {
+            // 1. Обязательно логируем, чтобы не скрыть проблему
+            console.error('[Elestra] Error in reactive effect:', err)
+
+            // 2. Вызываем пользовательский обработчик (если есть)
+            this._onError?.(err)
+
+            // 3. НЕ делаем dispose! 
+            // Эффект остаётся активным, но подписан только на зависимости,
+            // прочитанные до момента исключения. Если ошибка не связана с ними,
+            // эффект может не восстановиться автоматически.
+            // Полное восстановление гарантировано только если исправятся данные,
+            // читаемые ДО места падения.            
         } finally {
             activeEffect = prevEffect
         }
