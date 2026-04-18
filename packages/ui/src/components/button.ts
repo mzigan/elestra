@@ -85,39 +85,41 @@ export const Button = defineComponent<ButtonProps>((props) => {
       const content = props.default?.()
       return typeof content === 'string' ? `${content}, loading` : 'Loading, please wait'
     })
-
     .spreadAttrs(props.attrs, new Set(['disabled', 'type', 'aria-busy', 'aria-label']))
-
     .classes(
       baseClasses,
       () => variants[resolve(props.variant, 'default')],
       () => sizes[resolve(props.size, 'default')],
-      () => (resolve(props.size, 'default') !== 'icon' && (resolve(props.icon, null) || resolve(props.loading, false)) && props.default ? 'gap-2' : ''),
+      () => resolve(props.size, 'default') !== 'icon' && (resolve(props.icon, null) || resolve(props.loading, false)) && props.default ? 'gap-2' : '',
       () => resolve(props.class, '')
     )
-
     .child(() => {
       const s = resolve(props.size, 'default')
       const isLoading = resolve(props.loading, false)
-      const currentIcon = resolve(props.icon, null)
       const content = props.default?.()
 
-      if (isLoading) {
-        return fragment(
-          span().attr('aria-hidden', 'true').classes('shrink-0', 'animate-spin').child(resolve(props.loadingIcon, null) ?? createDefaultSpinner()),
-          ...(s !== 'icon' && content ? [content] : [])
-        )
-      }
+      // Если грузимся — берем спиннер, иначе — обычную иконку
+      const icon = isLoading
+        ? (resolve(props.loadingIcon, null) ?? createDefaultSpinner())
+        : resolve(props.icon, null)
 
-      if (s === 'icon') return currentIcon ?? content ?? null
-      if (!currentIcon && !content) return null
+      // Квадратная кнопка-иконка
+      if (s === 'icon') return icon ?? content ?? null
 
+      // Пустая кнопка
+      if (!icon && !content) return null
+
+      // Обертка для иконки/спиннера. Если грузимся — добавляем крутеж и скрываем от скринридеров
+      const iconWrapper = isLoading
+        ? span().attr('aria-hidden', 'true').classes('shrink-0', 'animate-spin')
+        : span().class('shrink-0')
+
+      // Стандартная кнопка
       return fragment(
-        ...(currentIcon ? [span().class('shrink-0').child(currentIcon)] : []),
+        ...(icon ? [iconWrapper.child(icon)] : []),
         ...(content ? [content] : [])
       )
     })
-
     .on('click', (e) => props.onclick?.(e))
     .ref((el) => props.ref?.(el))
 })
