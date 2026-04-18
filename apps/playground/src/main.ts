@@ -6,7 +6,10 @@ import { Button } from '@elestra/ui'
 import { Mail, LoaderCircle, Trash2, createElement } from 'lucide'
 
 const App = defineComponent(() => {
-  const isLoading = signal(false)
+  const isLoading = signal(true)
+
+  const MailIcon = () => span().child(createElement(Mail))
+  const SpinnerIcon = () => span().class('animate-spin').child(createElement(LoaderCircle))
 
   return div()
     .class('p-8 flex flex-col gap-4 max-w-xs')
@@ -16,7 +19,7 @@ const App = defineComponent(() => {
       Button({
         default: () => span().text('Отправить'),
         // 2. Оборачиваем Mail() в createElement()
-        icon: span().class('w-4 h-4').child(createElement(Mail))
+        icon: span().child(createElement(Mail))
       })
     )
 
@@ -25,7 +28,7 @@ const App = defineComponent(() => {
       Button({
         size: 'icon',
         variant: 'outline',
-        icon: span().class('w-5 h-5').child(createElement(Trash2))
+        icon: span().child(createElement(Trash2))
       })
     )
 
@@ -35,7 +38,8 @@ const App = defineComponent(() => {
         variant: 'destructive',
         disabled: () => isLoading(),
         // Геттер вызывает createElement динамически
-        icon: () => span().class('w-4 h-4').child(
+        loading: isLoading, 
+        icon: () => span().child(
           createElement(isLoading() ? LoaderCircle : Trash2)
         ),
         default: () => span().text(isLoading() ? 'Удаление...' : 'Удалить')
@@ -49,6 +53,24 @@ const App = defineComponent(() => {
         onclick: () => isLoading.update(v => !v),
         default: () => span().text('Переключить состояние')
       })
+    )
+
+    .child(span().class('ml-2 text-xs text-muted-foreground').text('(показать/скрыть спиннер)'))
+
+    .child(
+      Button({ 
+        icon: MailIcon, 
+        loading: isLoading, 
+        loadingIcon: SpinnerIcon,
+        default: () => 'Login with Email' 
+      })
+    )
+
+    .child(
+      Button({ 
+        size: 'icon', 
+        icon: MailIcon 
+      })      
     )
 })
 

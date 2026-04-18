@@ -137,12 +137,18 @@ function resolveChild(child: Child): Node {
 
 // ─── ElementBuilder ───────────────────────────────────────────────────────────
 
-export class ElementBuilder<T extends HTMLElement = HTMLElement> {
+export class ElementBuilder<T extends Element = HTMLElement> {
     private _el: T
     private _cleanups: Array<() => void> = []
 
-    constructor(tag: string) {
-        this._el = document.createElement(tag) as T
+    constructor(tag: string, namespace?: string) {
+        if (namespace) {
+            // Для SVG и MathML используем createElementNS
+            this._el = document.createElementNS(namespace, tag) as unknown as T
+        } else {
+            // Для обычного HTML
+            this._el = document.createElement(tag) as unknown as T
+        }
     }
 
     // ─── Classes (Tailwind v4 utilities) ────────────────────────────────────
@@ -193,19 +199,22 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
      * el('div').style({ opacity: computed(() => active() ? '1' : '0.5') })
      */
     style(styles: StyleInput): this {
+        // Приводим к unknown, а затем к целевому типу, чтобы TS не ругался на T
+        const elStyle = (this._el as unknown as HTMLElement | SVGElement).style
+
         const apply = (prop: string, resolved: string) => {
             if (resolved === '' || (resolved as any) === null) {
                 if (prop.startsWith('--')) {
-                    this._el.style.removeProperty(prop)
+                    elStyle.removeProperty(prop)
                 } else {
-                    (this._el.style as any)[prop] = ''
-                    this._el.style.removeProperty(prop)
+                    (elStyle as any)[prop] = ''
+                    elStyle.removeProperty(prop)
                 }
             } else {
                 if (prop.startsWith('--')) {
-                    this._el.style.setProperty(prop, resolved)
+                    elStyle.setProperty(prop, resolved)
                 } else {
-                    (this._el.style as any)[prop] = resolved
+                    (elStyle as any)[prop] = resolved
                 }
             }
         }
@@ -434,7 +443,7 @@ export class ElementBuilder<T extends HTMLElement = HTMLElement> {
                     if (currentNode.parentNode) {
                         currentNode.parentNode.removeChild(currentNode)
                     }
-                    
+
                     // Потом чистим память (эффекты, onDestroy и т.д.)
                     destroyNode(currentNode)
                 }
@@ -635,11 +644,11 @@ export function portal(target: string | Element = document.body): ElementBuilder
 
     // Переопределяем метод build, чтобы перехватить создание ноды
     const originalBuild = builder.build.bind(builder)
-    
+
     builder.build = function (): any {
         // 1. Строим ноду как обычно (накидывая классы, детей и cleanups)
         const node = originalBuild()
-        
+
         // 2. Создаем пустой комментарий-якорь, который останется на месте вызова portal()
         const placeholder = document.createComment('portal-outlet')
 
@@ -722,16 +731,39 @@ export function mount(
  * adopt('#search-input')
  *   .on('input', e => query.set(e.target.value))
  */
-export function adopt<T extends HTMLElement>(
+export function adopt<T extends Element = HTMLElement>(
     selectorOrNode: string | T
 ): ElementBuilder<T> {
-    const node = typeof selectorOrNode === 'string' 
+    const node = typeof selectorOrNode === 'string'
         ? document.querySelector<T>(selectorOrNode)
         : selectorOrNode;
 
     if (!node) throw new Error(`adopt: element "${selectorOrNode}" not found`);
 
+    // Создаем инстанс с пустым тегом, он всё равно будет перезаписан
     const instance = new ElementBuilder<T>('div') as any
-    instance._el = node
+    instance._el = node as unknown as T
     return instance
+}
+
+// ─── SVG Typed shorthands ────────────────────────────────────────────────────
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+export function svg(): ElementBuilder<SVGSVGElement> {
+    return new ElementBuilder<SVGSVGElement>('svg', SVG_NS)
+}
+export function circle(): ElementBuilder<SVGCircleElement> {
+    return new ElementBuilder<SVGCircleElement>('circle', SVG_NS)
+}
+export function path(): ElementBuilder<SVGPathElement> {
+    return new ElementBuilder<SVGPathElement>('path', SVG_NS)
+}
+export function g(): ElementBuilder<SVGGElement> {
+    return new ElementBuilder<SVGGElement>('g', SVG_NS)
+}
+export function line(): ElementBuilder<SVGLineElement> {
+    return new ElementBuilder<SVGLineElement>('line', SVG_NS)
+}
+export function rect(): ElementBuilder<SVGRectElement> {
+    return new ElementBuilder<SVGRectElement>('rect', SVG_NS)
 }

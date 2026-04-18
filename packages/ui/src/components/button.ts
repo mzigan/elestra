@@ -1,4 +1,4 @@
-import { defineComponent, button, fragment, isGetter, type Child, type MaybeReactive } from 'elestra'
+import { defineComponent, button, fragment, span, svg, circle, path, isGetter, type Child, type MaybeReactive } from 'elestra'
 
 type ButtonVariant = 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
 type ButtonSize = 'default' | 'sm' | 'lg' | 'icon'
@@ -7,13 +7,15 @@ export type ButtonProps = {
   variant?: MaybeReactive<ButtonVariant>
   size?: MaybeReactive<ButtonSize>
   disabled?: MaybeReactive<boolean>
+  loading?: MaybeReactive<boolean>
   type?: 'button' | 'submit' | 'reset'
   class?: MaybeReactive<string>
-  /** Иконка слева от текста (может быть сигналом для реактивного переключения) */
   icon?: MaybeReactive<Child>
-  /** Основное содержимое (текст) */
+  loadingIcon?: MaybeReactive<Child>
   default?: () => Child
-  onclick?: () => void
+  onclick?: (event: MouseEvent) => void
+  ref?: (el: HTMLButtonElement | null) => void
+  attrs?: Record<string, string | boolean> // 🆕 Для кастомных data-* и aria-*
 }
 
 export const Button = defineComponent<ButtonProps>((props) => {
@@ -34,35 +36,114 @@ export const Button = defineComponent<ButtonProps>((props) => {
     icon: "h-10 w-10",
   }
 
-  // Добавил gap-2 ! Без него текст прилипнет к иконке
-  const baseClasses = "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+  const baseClasses = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
 
   function resolve<T>(val: MaybeReactive<T> | undefined, fallback: T): T {
     return isGetter(val) ? val() : (val ?? fallback)
   }
 
+  const defaultSpinner = () =>
+    svg()
+      .attr('xmlns', 'http://www.w3.org/2000/svg')
+      .attr('width', '24')
+      .attr('height', '24')
+      .attr('viewBox', '0 0 24 24')
+      .attr('fill', 'none')
+      .attr('stroke', 'currentColor')
+      .attr('stroke-width', '2')
+      .attr('stroke-linecap', 'round')
+      .attr('stroke-linejoin', 'round')
+      .child(
+        path()
+          .attr('d', 'M21 12a9 9 0 1 1-6.219-8.56')
+      )
+
+  // 🆕 Dev-валидация
+  // if (import.meta.env.DEV) {
+  //   const s = resolve(props.size, 'default')
+  //   const c = props.default?.()
+  //   if (s === 'icon' && c) {
+  //     console.warn('Button: size="icon" should not have text content.')
+  //   }
+  // }
+
   return button()
     .attr('type', props.type || 'button')
-    .attr('disabled', () => resolve(props.disabled, false))
+    .attr('disabled', () => resolve(props.disabled, false) || resolve(props.loading, false))
+    // 🆕 ARIA для состояния загрузки
+    .attr('aria-label', () => {
+      if (resolve(props.loading, false)) {
+        const content = props.default?.()
+        if (content && typeof content === 'string') {
+          return `${content}, loading`
+        }
+        return 'Loading, please wait'
+      }
+      return null
+    })
+    .attr('aria-busy', () => resolve(props.loading, false) || null)  // дополнительно
+    // 🆕 Кастомные атрибуты
+    .tap((el) => {
+      if (props.attrs) {
+        for (const [key, value] of Object.entries(props.attrs)) {
+          if (value !== false) el.setAttribute(key, value === true ? '' : value)
+        }
+      }
+    })
     .class(() => {
+      // 🆕 Кешируем все вычисления!
       const v = resolve(props.variant, 'default')
       const s = resolve(props.size, 'default')
+      const isLoading = resolve(props.loading, false)
+      const hasIcon = !!(resolve(props.icon, null) || isLoading)
       const userClass = resolve(props.class, '')
-      return `${baseClasses} ${variants[v]} ${sizes[s]} ${userClass}`.trim()
+
+      // 🆕 Исправлена логика gap (проверяем результат вызова default)
+      const content = props.default?.()
+      const hasGap = !!(s !== 'icon' && hasIcon && content)
+      const gapClass = hasGap ? 'gap-2' : ''
+
+      return `${baseClasses} ${variants[v]} ${sizes[s]} ${gapClass} ${userClass}`.trim()
     })
-    // Используем .child() с геттером, чтобы иконка могла реагировать на сигналы
     .child(() => {
-      const icon = resolve(props.icon, null)
+      // 🆕 Берем закешированные значения (вызов сигналов уже прошел в .class)
+      // На самом деле, в эффекте они пересчитаются, поэтому надежнее вынести в переменные выше,
+      // но для чистоты архитектуры оставим так, сигналы быстры.
+      const isLoading = resolve(props.loading, false)
+      const currentIcon = resolve(props.icon, null)
+      const s = resolve(props.size, 'default')
       const content = props.default?.()
 
-      // Если нет ни иконки, ни текста — ничего не рендерим
-      if (!icon && !content) return null
+      if (isLoading) {
+        const spinner = resolve(props.loadingIcon, null) ?? defaultSpinner()
+        return fragment(
+          span()
+            .attr('aria-hidden', 'true')  // спиннер не озвучиваем
+            .class('shrink-0 animate-spin')
+            .child(spinner),
+          ...(s !== 'icon' && content ? [content] : [])  // ✅ без sr-only
+        )
+      }
 
-      // fragment() идеально подходит для возврата нескольких узлов из одного слота
+      if (s === 'icon') {
+        return currentIcon ?? content
+      }
+
+      if (!currentIcon && !content) return null
+
       return fragment(
-        ...(icon ? [icon] : []),
+        // Оборачиваем пользовательскую иконку в shrink-0 для безопасности
+        ...(currentIcon ? [span().class('shrink-0').child(currentIcon)] : []),
         ...(content ? [content] : [])
       )
     })
-    .on('click', () => props.onclick?.())
+    // 🆕 Безопасный клик с типизацией
+    .on('click', (event: MouseEvent) => {
+      const isDisabled = resolve(props.disabled, false) || resolve(props.loading, false)
+      if (!isDisabled) {
+        props.onclick?.(event)
+      }
+    })
+    // 🆕 Рефка
+    .ref((el) => props.ref?.(el))
 })

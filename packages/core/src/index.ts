@@ -39,6 +39,8 @@ export {
   label, select, option, textarea,
   isGetter,
 
+  svg, circle, path, g, line, rect,
+
   // Types
   type Child,
   type Getter,
