@@ -11,11 +11,9 @@ import {
   useEffect,
 } from 'elestra'
 
-// ✅ Вынесено за пределы компонента — не пересоздаётся при каждом рендере
 function resolve<T>(val: MaybeReactive<T> | undefined, fallback: T): T {
   return isGetter(val) ? val() : (val ?? fallback)
 }
-
 
 function createDefaultSpinner() {
   return svg()
@@ -71,87 +69,47 @@ const baseClasses =
   'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50'
 
 export const Button = defineComponent<ButtonProps>((props) => {
-
-  // ✅ Dev-валидация не вызывает слот во время инициализации —
-  //    предупреждение срабатывает при изменении size, а не при создании
   if (process.env.NODE_ENV !== 'production') {
     useEffect(() => {
-      const s = resolve(props.size, 'default')
-      // Предупреждение сработает не только при создании, 
-      // но и если пользователь динамически переключит size на 'icon'
-      if (s === 'icon' && props.default) {
+      if (resolve(props.size, 'default') === 'icon' && props.default)
         console.warn('Button: size="icon" should not have text content.')
-      }
     })
   }
 
   return button()
     .attr('type', props.type ?? 'button')
-    // ✅ disabled — оба условия в одном месте
     .attr('disabled', () => resolve(props.disabled, false) || resolve(props.loading, false))
-    // ✅ aria-busy: строка "true"/"false", убирается атрибут только когда false
     .attr('aria-busy', () => resolve(props.loading, false) ? 'true' : null)
-    // ✅ aria-label: не перезаписывает, если loading = false
     .attr('aria-label', () => {
       if (!resolve(props.loading, false)) return null
       const content = props.default?.()
       return typeof content === 'string' ? `${content}, loading` : 'Loading, please wait'
     })
-    // ✅ attrs: реактивный — применяется в эффекте через .class или отдельный .tap
-    //    Защита от перезаписи зарезервированных атрибутов
-    .tap((el) => {
-      if (!props.attrs) return
-      const RESERVED = new Set(['disabled', 'type', 'aria-busy', 'aria-label'])
-      for (const [key, value] of Object.entries(props.attrs)) {
-        if (RESERVED.has(key)) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.warn(`Button: attrs["${key}"] conflicts with a built-in attribute and will be ignored.`)
-          }
-          continue
-        }
-        if (value === false) {
-          el.removeAttribute(key)
-        } else {
-          el.setAttribute(key, value === true ? '' : value)
-        }
-      }
-    })
-    .class(() => {
-      const v = resolve(props.variant, 'default')
-      const s = resolve(props.size, 'default')
-      const isLoading = resolve(props.loading, false)
-      const hasIcon = !!(resolve(props.icon, null) || isLoading)
-      const userClass = resolve(props.class, '')
-      const content = props.default?.()
-      const hasGap = s !== 'icon' && hasIcon && !!content
 
-      // ✅ filter(Boolean) убирает двойные пробелы от пустых строк
-      return [baseClasses, variants[v], sizes[s], hasGap ? 'gap-2' : '', userClass]
-        .filter(Boolean)
-        .join(' ')
-    })
+    .spreadAttrs(props.attrs, new Set(['disabled', 'type', 'aria-busy', 'aria-label']))
+
+    .classes(
+      baseClasses,
+      () => variants[resolve(props.variant, 'default')],
+      () => sizes[resolve(props.size, 'default')],
+      () => (resolve(props.size, 'default') !== 'icon' && (resolve(props.icon, null) || resolve(props.loading, false)) && props.default ? 'gap-2' : ''),
+      () => resolve(props.class, '')
+    )
+
     .child(() => {
-      // ✅ Значения вычисляются один раз внутри эффекта .child()
+      const s = resolve(props.size, 'default')
       const isLoading = resolve(props.loading, false)
       const currentIcon = resolve(props.icon, null)
-      const s = resolve(props.size, 'default')
       const content = props.default?.()
 
       if (isLoading) {
-        const spinner = resolve(props.loadingIcon, null) ?? createDefaultSpinner()
         return fragment(
-          span()
-            .attr('aria-hidden', 'true')
-            .class('shrink-0 animate-spin')
-            .child(spinner),
+          span().attr('aria-hidden', 'true').classes('shrink-0', 'animate-spin').child(resolve(props.loadingIcon, null) ?? createDefaultSpinner()),
           ...(s !== 'icon' && content ? [content] : [])
         )
       }
 
-      if (s === 'icon') {
-        return currentIcon ?? content ?? null
-      }
-
+      if (s === 'icon') return currentIcon ?? content ?? null
       if (!currentIcon && !content) return null
 
       return fragment(
@@ -159,10 +117,7 @@ export const Button = defineComponent<ButtonProps>((props) => {
         ...(content ? [content] : [])
       )
     })
-    // ✅ Обработчик клика без дублирующей проверки disabled —
-    //    браузер и pointer-events-none уже не пропустят событие
-    .on('click', (event: MouseEvent) => {
-      props.onclick?.(event)
-    })
+
+    .on('click', (e) => props.onclick?.(e))
     .ref((el) => props.ref?.(el))
 })

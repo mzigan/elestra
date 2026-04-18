@@ -188,6 +188,29 @@ export class ElementBuilder<T extends Element = HTMLElement> {
         return this
     }
 
+    /**
+     * Add multiple static or reactive classes. 
+     * Falsy values (false, null, undefined, '') are ignored.
+     * If any argument is a getter, wraps them in a single reactive effect for performance.
+     */
+    classes(...args: MaybeReactive<string | false | null | undefined>[]): this {
+        // Проверяем, есть ли среди аргументов хотя бы одна функция (геттер)
+        const hasReactive = args.some(arg => typeof arg === 'function')
+
+        if (hasReactive) {
+            // Оборачиваем всё в один геттер, чтобы создать один эффект
+            return this.class(() => {
+                return args
+                    .map(arg => (typeof arg === 'function' ? arg() : arg))
+                    .filter(Boolean)
+                    .join(' ')
+            })
+        } else {
+            // Если всё статическое — просто собираем строку
+            return this.class(args.filter(Boolean).join(' '))
+        }
+    }
+
     // ─── Inline styles (CSS custom properties) ──────────────────────────────
 
     /**
@@ -261,6 +284,21 @@ export class ElementBuilder<T extends Element = HTMLElement> {
             apply(value)
         }
         return this
+    }
+
+    /**
+         * Spread a record of attributes onto the element.
+         * Ignores undefined/null values and optionally skips reserved keys.
+         */
+    spreadAttrs(attrs: Record<string, any> | undefined, ignore?: Set<string>): this {
+        return this.tap((el) => {
+            if (!attrs) return
+
+            for (const [key, value] of Object.entries(attrs)) {
+                if (ignore?.has(key) || value === undefined || value === null) continue
+                el.setAttribute(key, value === true ? '' : String(value))
+            }
+        })
     }
 
     /** Shorthand: id attribute */
