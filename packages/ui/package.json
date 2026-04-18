@@ -1,6 +1,6 @@
 {
   "name": "@elestra/ui",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -14,7 +14,9 @@
     "./styles/theme.css": "./dist/styles/theme.css",
     "./styles/*": "./dist/styles/*"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup && npm run copy:styles",
     "copy:styles": "cp -r src/styles dist/ 2>/dev/null || true",

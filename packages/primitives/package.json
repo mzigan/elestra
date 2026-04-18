@@ -1,6 +1,6 @@
 {
   "name": "@elestra/primitives",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -12,13 +12,15 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch"
   },
   "dependencies": {
-    "elestra": "workspace:*" 
+    "elestra": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.2",
