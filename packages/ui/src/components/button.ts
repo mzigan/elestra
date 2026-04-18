@@ -59,13 +59,13 @@ export const Button = defineComponent<ButtonProps>((props) => {
       )
 
   // 🆕 Dev-валидация
-  // if (import.meta.env.DEV) {
-  //   const s = resolve(props.size, 'default')
-  //   const c = props.default?.()
-  //   if (s === 'icon' && c) {
-  //     console.warn('Button: size="icon" should not have text content.')
-  //   }
-  // }
+  if (process.env.NODE_ENV !== 'production') {
+    const s = resolve(props.size, 'default')
+    const c = props.default?.()
+    if (s === 'icon' && c) {
+      console.warn('Button: size="icon" should not have text content.')
+    }
+  }
 
   return button()
     .attr('type', props.type || 'button')
