@@ -1,6 +1,6 @@
 {
   "name": "elestra",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Fine-grained reactive UI framework. No VDOM, No JSX.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -13,7 +13,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch"
