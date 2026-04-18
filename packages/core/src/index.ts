@@ -22,6 +22,7 @@ export {
   // Core factory
   el,
   fragment,
+  portal,
   mount,
   adopt,
   destroyNode,

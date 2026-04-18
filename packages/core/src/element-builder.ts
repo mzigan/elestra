@@ -613,6 +613,58 @@ export function fragment(...kids: Child[]): DocumentFragment {
     return frag
 }
 
+// ─── Portal ─────────────────────────────────────────────────────────────────
+
+/**
+ * Create an ElementBuilder that renders its children in a different part of the DOM.
+ * Perfect for modals, popovers, and tooltips. Returns a placeholder Comment node
+ * to the parent tree, keeping the lifecycle (destroy) correctly linked.
+ *
+ * @example
+ * portal(document.body)
+ *   .class('fixed inset-0 z-50')
+ *   .children(el('div').text('I am in body!'))
+ */
+export function portal(target: string | Element = document.body): ElementBuilder<HTMLDivElement> {
+    const targetEl = typeof target === 'string' ? document.querySelector(target) : target
+    if (!targetEl) throw new Error(`portal: target "${target}" not found`)
+
+    // Создаем обертку-билдер, которая будет содержать детей
+    const builder = new ElementBuilder<HTMLDivElement>('div')
+    builder.attr('data-elestra-portal', '')
+
+    // Переопределяем метод build, чтобы перехватить создание ноды
+    const originalBuild = builder.build.bind(builder)
+    
+    builder.build = function (): any {
+        // 1. Строим ноду как обычно (накидывая классы, детей и cleanups)
+        const node = originalBuild()
+        
+        // 2. Создаем пустой комментарий-якорь, который останется на месте вызова portal()
+        const placeholder = document.createComment('portal-outlet')
+
+        // 3. Физически перемещаем собранную ноду в целевой контейнер (например, body)
+        targetEl.appendChild(node)
+
+        // 4. МАГИЯ ЖИЗНЕННОГО ЦИКЛА: Привязываем уничтожение.
+        // Когда родительский компонент удалит placeholder из DOM, сработает destroyNode(placeholder).
+        // Мы регистрируем хук, который при этом уничтожит саму ноду портала и вычистит её из body.
+        registerDestroyHook(placeholder, () => {
+            destroyNode(node)
+            if (node.parentNode) {
+                node.parentNode.removeChild(node)
+            }
+        })
+
+        // 5. Возвращаем placeholder в родительский билдер.
+        // Родитель думает, что это его ребенок, вставляет в DOM, 
+        // но визуально на этом месте пусто, а контент — в body.
+        return placeholder
+    }
+
+    return builder
+}
+
 // ─── Mount ───────────────────────────────────────────────────────────────────
 
 /**

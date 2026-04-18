@@ -1,11 +1,10 @@
-import { type Signal } from 'elestra';
+import { ElementBuilder, type Signal } from 'elestra';
 
-// Вешаем на триггер
-export function ariaExpanded(builder: any, stateSignal: Signal<boolean>) {
+// Теперь билдер строго типизирован, и мы не теряем IntelliSense
+export function ariaExpanded<T extends HTMLElement>(builder: ElementBuilder<T>, stateSignal: Signal<boolean>) {
   return builder.attr('aria-expanded', () => String(stateSignal()));
 }
 
-// Вешаем на контент
-export function ariaControls(builder: any, contentId: string) {
+export function ariaControls<T extends HTMLElement>(builder: ElementBuilder<T>, contentId: string) {
   return builder.attr('aria-controls', contentId);
 }
